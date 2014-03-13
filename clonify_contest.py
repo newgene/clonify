@@ -183,14 +183,16 @@ def get_memery_usage():
     print 'current_rss:', rss
 
 
-def analyze(infile, outfile=None):
+def analyze(infile, outfile=None, n=None):
     get_memery_usage()
     print_resource_usage()
 
     t00 = time.time()
     print "Loading input sequences...",
     with open(infile) as in_f:
-        seqs = json.load(in_f)  # [:50000]                      # ####
+        seqs = json.load(in_f)
+        if n:
+            seqs = seqs[:n]
     seqs = [Seq(s, 'junc_aa') for s in seqs]
     print "done. [{}, {:.2f}s]".format(len(seqs), time.time() - t00)
     get_memery_usage()
@@ -231,4 +233,9 @@ if __name__ == '__main__':
         outfile = sys.argv[2]
     except:
         outfile = None
-    analyze(infile, outfile)
+    try:
+        n = int(sys.argv[3])
+    except:
+        n = None
+
+    analyze(infile, outfile, n)
