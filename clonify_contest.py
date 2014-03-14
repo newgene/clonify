@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import time
 import math
@@ -10,7 +11,7 @@ from Levenshtein import distance
 from scipy.cluster.hierarchy import fcluster
 
 
-default_dtype = 'f2'
+default_dtype = 'f4'
 distance_cutoff = 0.32
 
 
@@ -109,7 +110,8 @@ def make_iter(seqs, mode=1):
             yield (seq_i, seqs[i + 1:])
 
 
-def get_scores_one_row((seq_i, row_j)):
+def get_scores_one_row(args):
+    (seq_i, row_j) = args
     return np.array([get_score(seq_i, seq_j) for seq_j in row_j], dtype=default_dtype)
 
 
@@ -125,20 +127,20 @@ def build_condensed_matrix(seqs, mode=2):
     else:
         result_one_row = p.imap(get_scores_one_row, make_iter(seqs, mode=2), chunksize=100)
         result = np.concatenate(list(result_one_row))
-    p.close()
-    p.join()
+    #p.close()
+    #p.join()
     return result
 
 
 def build_cluster_dict(count, vh):
     clusters = {}
-    for c in xrange(1, count):
+    for c in range(1, count):
         clusters["lineage_{0}_{1}".format(vh, str(c))] = []
     return clusters
 
 
 def assign_seqs(flatCluster, clusters, input_seqs, vh):
-    for s in xrange(len(flatCluster)):
+    for s in range(len(flatCluster)):
         s_id = 'lineage_{0}_{1}'.format(vh, str(flatCluster[s]))
         clusters[s_id].append(input_seqs[s])
     return clusters
@@ -173,14 +175,14 @@ def write_output(outfile, data):
 def print_resource_usage():
     import resource
     usage = resource.getrusage(resource.RUSAGE_SELF)
-    print 'max_rss:', usage.ru_maxrss
+    print('max_rss:', usage.ru_maxrss)
 
 
 def get_memery_usage():
     import subprocess
     import os
-    rss = subprocess.check_output('ps -p {} u'.format(os.getpid()), shell=True).split('\n')[1].split()[5]
-    print 'current_rss:', rss
+    rss = subprocess.check_output('ps -p {} u'.format(os.getpid()), shell=True).decode('utf-8').split('\n')[1].split()[5]
+    print('current_rss:', rss)
 
 
 def analyze(infile, outfile=None, n=None):
@@ -188,38 +190,39 @@ def analyze(infile, outfile=None, n=None):
     print_resource_usage()
 
     t00 = time.time()
-    print "Loading input sequences...",
+    print("Loading input sequences...", end='')
     with open(infile) as in_f:
         seqs = json.load(in_f)
         if n:
             seqs = seqs[:n]
     seqs = [Seq(s, 'junc_aa') for s in seqs]
-    print "done. [{}, {:.2f}s]".format(len(seqs), time.time() - t00)
+    print("done. [{}, {:.2f}s]".format(len(seqs), time.time() - t00))
     get_memery_usage()
     print_resource_usage()
 
     t0 = time.time()
-    print "Calculating condensed distance matrix...",
+    print("Calculating condensed distance matrix...", end='')
     con_distMatrix = build_condensed_matrix(seqs, mode=2)   # ####
-    print "done. [{}, {:.2f}s]".format(con_distMatrix.shape, time.time() - t0)
+    print("done. [{}, {:.2f}s]".format(con_distMatrix.shape, time.time() - t0))
+    print("\tmin: {}, max: {}".format(con_distMatrix.min(), con_distMatrix.max()))
     get_memery_usage()
     print_resource_usage()
 
     t0 = time.time()
-    print "Calculating clusters...",
+    print("Calculating clusters...", end='')
     clusters = make_clusters(con_distMatrix, seqs)
-    print "done. [{}, {:.2f}s]".format(len(clusters), time.time() - t0)
+    print("done. [{}, {:.2f}s]".format(len(clusters), time.time() - t0))
     get_memery_usage()
     print_resource_usage()
 
     t0 = time.time()
-    print "Outputting clusters...",
+    print ("Outputting clusters...", end='')
     outfile = outfile or '_clone.'.join(infile.rsplit('.', 1))
     write_output(outfile, clusters)
-    print "done. {:.2f}s".format(time.time() - t0)
+    print("done. {:.2f}s".format(time.time() - t0))
 
-    print '=' * 20
-    print "Finished! Total time= {:.2f}s".format(time.time() - t00)
+    print('=' * 20)
+    print("Finished! Total time= {:.2f}s".format(time.time() - t00))
     get_memery_usage()
     print_resource_usage()
 
@@ -227,7 +230,7 @@ if __name__ == '__main__':
     try:
         infile = sys.argv[1]
     except:
-        print "Usage: python clonify_contest.py <infile> [outfile]"
+        print("Usage: python clonify_contest.py <infile> [outfile]")
         sys.exit()
     try:
         outfile = sys.argv[2]
