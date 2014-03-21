@@ -132,41 +132,34 @@ def build_condensed_matrix(seqs, mode=2):
     return result
 
 
-def build_cluster_dict(count, vh):
+def build_cluster_dict(flatCluster):
     clusters = {}
-    for c in range(1, count):
-        clusters["lineage_{0}_{1}".format(vh, str(c))] = []
+    for i, c in enumerate(flatCluster):
+        if c in clusters:
+            clusters[c].append(i)
+        else:
+            clusters[c] = [i]
     return clusters
 
 
-def assign_seqs(flatCluster, clusters, input_seqs, vh):
-    for s in range(len(flatCluster)):
-        s_id = 'lineage_{0}_{1}'.format(vh, str(flatCluster[s]))
-        clusters[s_id].append(input_seqs[s])
-    return clusters
-
-
-def make_clusters(con_distMatrix, input_seqs):
-    vh = 'v0'
-    #print 'clustering...'
+def make_clusters(con_distMatrix):
     linkageMatrix = fc.linkage(con_distMatrix, method='average', preserve_input=False)
+    del con_distMatrix
     flatCluster = fcluster(linkageMatrix, distance_cutoff, criterion='distance')
     del linkageMatrix
-    #print 'building cluster dict...'
-    clusters = build_cluster_dict(max(flatCluster) + 1, vh)
-    #print 'assigning sequences to clusters...'
-    clusters = assign_seqs(flatCluster, clusters, input_seqs, vh)
+    clusters = build_cluster_dict(flatCluster)
+    del flatCluster
     return clusters
 
 
-def write_output(outfile, data):
+def write_output(outfile, clusters, seqs, vh='v0'):
     with open(outfile, 'w') as out_f:
-        for c in data.keys():
-            rString = ''
-            if len(data[c]) < 2:
+        for c in clusters.keys():
+            if len(clusters[c]) < 2:
                 continue
-            rString += '#{}\n'.format(c)
-            for seq in data[c]:
+            rString = "#lineage_{0}_{1}\n".format(vh, str(c))
+            for seq_idx in clusters[c]:
+                seq = seqs[seq_idx]
                 rString += '>{0}\n{1}\n'.format(seq.id, seq.junc)
             rString += '\n'
             out_f.write(rString)
@@ -210,7 +203,8 @@ def analyze(infile, outfile=None, n=None):
 
     t0 = time.time()
     print("Calculating clusters...", end='')
-    clusters = make_clusters(con_distMatrix, seqs)
+    clusters = make_clusters(con_distMatrix)
+
     print("done. [{}, {:.2f}s]".format(len(clusters), time.time() - t0))
     get_memery_usage()
     print_resource_usage()
@@ -218,7 +212,7 @@ def analyze(infile, outfile=None, n=None):
     t0 = time.time()
     print ("Outputting clusters...", end='')
     outfile = outfile or '_clone.'.join(infile.rsplit('.', 1))
-    write_output(outfile, clusters)
+    write_output(outfile, clusters, seqs)
     print("done. {:.2f}s".format(time.time() - t0))
 
     print('=' * 20)
