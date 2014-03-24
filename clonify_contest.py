@@ -1,5 +1,4 @@
 from __future__ import print_function
-import sys
 import time
 import math
 import json
@@ -9,6 +8,10 @@ import fastcluster as fc
 from Bio import pairwise2
 from Levenshtein import distance
 from scipy.cluster.hierarchy import fcluster
+
+import subprocess
+import os
+import resource
 
 
 default_dtype = 'f4'
@@ -165,22 +168,15 @@ def write_output(outfile, clusters, seqs, vh='v0'):
             out_f.write(rString)
 
 
-def print_resource_usage():
-    import resource
-    usage = resource.getrusage(resource.RUSAGE_SELF)
-    print('max_rss:', usage.ru_maxrss)
-
-
 def get_memery_usage():
-    import subprocess
-    import os
     rss = subprocess.check_output('ps -p {} u'.format(os.getpid()), shell=True).decode('utf-8').split('\n')[1].split()[5]
-    print('current_rss:', rss)
+    max_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    print('current_rss: {}\tmax_rss: {}'.format(rss, max_rss))
 
 
-def analyze(infile, outfile=None, n=None):
-    get_memery_usage()
-    print_resource_usage()
+def analyze(infile, outfile=None, n=None, output_format='binary', memory_usage=False):
+    if memory_usage:
+        get_memery_usage()
 
     t00 = time.time()
     print("Loading input sequences...", end='')
@@ -190,49 +186,53 @@ def analyze(infile, outfile=None, n=None):
             seqs = seqs[:n]
     seqs = [Seq(s, 'junc_aa') for s in seqs]
     print("done. [{}, {:.2f}s]".format(len(seqs), time.time() - t00))
-    get_memery_usage()
-    print_resource_usage()
+    if memory_usage:
+        get_memery_usage()
 
     t0 = time.time()
     print("Calculating condensed distance matrix...", end='')
     con_distMatrix = build_condensed_matrix(seqs, mode=2)   # ####
     print("done. [{}, {:.2f}s]".format(con_distMatrix.shape, time.time() - t0))
     print("\tmin: {}, max: {}".format(con_distMatrix.min(), con_distMatrix.max()))
-    get_memery_usage()
-    print_resource_usage()
+    if memory_usage:
+        get_memery_usage()
 
     t0 = time.time()
     print("Calculating clusters...", end='')
     clusters = make_clusters(con_distMatrix)
 
     print("done. [{}, {:.2f}s]".format(len(clusters), time.time() - t0))
-    get_memery_usage()
-    print_resource_usage()
+    if memory_usage:
+        get_memery_usage()
 
     t0 = time.time()
     print ("Outputting clusters...", end='')
-    outfile = outfile or '_clone.'.join(infile.rsplit('.', 1))
-    write_output(outfile, clusters, seqs)
+    if output_format == 'text':
+        write_output(outfile, clusters, seqs)
+    else:
+        np.savez_compressed(outfile, clusters=clusters)
     print("done. {:.2f}s".format(time.time() - t0))
 
     print('=' * 20)
     print("Finished! Total time= {:.2f}s".format(time.time() - t00))
-    get_memery_usage()
-    print_resource_usage()
+    if memory_usage:
+        get_memery_usage()
 
 if __name__ == '__main__':
-    try:
-        infile = sys.argv[1]
-    except:
-        print("Usage: python clonify_contest.py <infile> [outfile]")
-        sys.exit()
-    try:
-        outfile = sys.argv[2]
-    except:
-        outfile = None
-    try:
-        n = int(sys.argv[3])
-    except:
-        n = None
+    import argparse
 
-    analyze(infile, outfile, n)
+    parser = argparse.ArgumentParser(description='Clonify script.')
+    parser.add_argument('infile', action="store", help='input sequence file')
+    parser.add_argument('outfile', action="store", help='output file')
+    parser.add_argument('-n', action="store", dest="n", type=int,
+                        help='maximum number of sequences to process from input file')
+    parser.add_argument('-f', action='store', dest='output_format', default='binary',
+                        help='output format: binary | text.')
+    parser.add_argument('-m', action='store_true', dest='memory_usage',
+                        help='print out memeory useage')
+
+    args = parser.parse_args()
+    print(args)
+    analyze(args.infile, args.outfile, n=args.n,
+            output_format=args.output_format,
+            memory_usage=args.memory_usage)
