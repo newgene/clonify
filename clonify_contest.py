@@ -150,9 +150,7 @@ def make_clusters(con_distMatrix):
     del con_distMatrix
     flatCluster = fcluster(linkageMatrix, distance_cutoff, criterion='distance')
     del linkageMatrix
-    clusters = build_cluster_dict(flatCluster)
-    del flatCluster
-    return clusters
+    return flatCluster
 
 
 def write_output(outfile, clusters, seqs, vh='v0'):
@@ -174,7 +172,7 @@ def get_memery_usage():
     print('current_rss: {}\tmax_rss: {}'.format(rss, max_rss))
 
 
-def analyze(infile, outfile=None, n=None, output_format='binary', memory_usage=False):
+def analyze(infile, outfile=None, n=None, output_format='cluster_only', memory_usage=False):
     if memory_usage:
         get_memery_usage()
 
@@ -200,17 +198,17 @@ def analyze(infile, outfile=None, n=None, output_format='binary', memory_usage=F
     t0 = time.time()
     print("Calculating clusters...", end='')
     clusters = make_clusters(con_distMatrix)
-
-    print("done. [{}, {:.2f}s]".format(len(clusters), time.time() - t0))
+    print("done. [{}, {:.2f}s]".format(clusters.max(), time.time() - t0))
     if memory_usage:
         get_memery_usage()
 
     t0 = time.time()
     print ("Outputting clusters...", end='')
-    if output_format == 'text':
+    if output_format == 'seqs':
+        clusters = build_cluster_dict(clusters)
         write_output(outfile, clusters, seqs)
     else:
-        np.savez_compressed(outfile, clusters=clusters)
+        np.savetxt(outfile, clusters, fmt='%d')
     print("done. {:.2f}s".format(time.time() - t0))
 
     print('=' * 20)
@@ -226,8 +224,8 @@ if __name__ == '__main__':
     parser.add_argument('outfile', action="store", help='output file')
     parser.add_argument('-n', action="store", dest="n", type=int,
                         help='maximum number of sequences to process from input file')
-    parser.add_argument('-f', action='store', dest='output_format', default='binary',
-                        help='output format: binary | text.')
+    parser.add_argument('-f', action='store', dest='output_format', default='cluster_only',
+                        help='output format: cluster_only | seqs.')
     parser.add_argument('-m', action='store_true', dest='memory_usage',
                         help='print out memeory useage')
 
