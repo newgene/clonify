@@ -230,7 +230,6 @@ if __name__ == '__main__':
                         help='print out memeory useage')
 
     args = parser.parse_args()
-    print(args)
     analyze(args.infile, args.outfile, n=args.n,
             output_format=args.output_format,
             memory_usage=args.memory_usage)
