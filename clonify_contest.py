@@ -1,3 +1,21 @@
+'''
+Python module dependencies:
+
+biopython==1.63
+fastcluster==1.1.13
+numpy==1.7.1
+python-Levenshtein==0.11.2
+scipy==0.12.0
+
+Under Ubuntu, scipy, numpy and biopython can be installed as:
+
+sudo apt-get install python-biopython python-numpy python-scipy
+
+fastcluster and python-Levenshtein can be installed using pip:
+
+pip install fastcluster python-Levenshtein
+
+'''
 from __future__ import print_function
 import time
 import math
